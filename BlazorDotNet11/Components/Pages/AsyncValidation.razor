@@ -1,0 +1,84 @@
+@page "/async-validation"
+@rendermode InteractiveServer
+
+<PageTitle>Async Validation</PageTitle>
+
+<h1>Async username validation</h1>
+<p>Try <code>admin</code>, <code>taken</code>, or <code>blazor</code>. The availability check takes a moment.</p>
+
+<EditForm EditContext="editContext" OnSubmit="HandleSubmit">
+    <div class="mb-3">
+        <label for="username" class="form-label">Username</label>
+        <InputText id="username" class="form-control" @bind-Value="model.Username" />
+        <ValidationMessage For="@(() => model.Username)" />
+    </div>
+    <button class="btn btn-primary" type="submit" disabled="@isChecking">
+        @(isChecking ? "Checking..." : "Check username")
+    </button>
+</EditForm>
+
+@if (isAvailable)
+{
+    <p class="mt-3 text-success" role="status">Username is available. You can register!</p>
+}
+
+@code {
+    private readonly RegistrationModel model = new();
+    private EditContext editContext = default!;
+    private ValidationMessageStore messages = default!;
+    private bool isChecking;
+    private bool isAvailable;
+
+    protected override void OnInitialized()
+    {
+        editContext = new EditContext(model);
+        messages = new ValidationMessageStore(editContext);
+        editContext.OnValidationRequested += OnValidationRequested;
+    }
+
+    private void OnValidationRequested(object? sender, ValidationRequestedEventArgs args) =>
+        args.AddAsyncValidator(ValidateUsernameAsync);
+
+    private async Task ValidateUsernameAsync(CancellationToken cancellationToken)
+    {
+        var field = editContext.Field(nameof(model.Username));
+        messages.Clear(field);
+        editContext.NotifyValidationStateChanged();
+
+        if (string.IsNullOrWhiteSpace(model.Username))
+        {
+            messages.Add(field, "Username is required.");
+        }
+        else
+        {
+            await Task.Delay(800, cancellationToken);
+
+            if (new[] { "admin", "taken", "blazor" }.Contains(model.Username, StringComparer.OrdinalIgnoreCase))
+            {
+                messages.Add(field, "That username is already taken.");
+            }
+        }
+
+        editContext.NotifyValidationStateChanged();
+    }
+
+    private async Task HandleSubmit(EditContext context)
+    {
+        isChecking = true;
+        isAvailable = false;
+
+        try
+        {
+            isAvailable = await context.ValidateAsync(CancellationToken.None);
+        }
+        finally
+        {
+            isChecking = false;
+        }
+    }
+
+    private sealed class RegistrationModel
+    {
+        public string Username { get; set; } = string.Empty;
+    }
+}

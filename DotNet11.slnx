@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="BlazorDotNet11/BlazorDotNet11.csproj" />
+  <Project Path="DotNet11/DotNet11.csproj" />
+  <Project Path="McpServer1/McpServer1/McpServer1.csproj" />
+</Solution>
